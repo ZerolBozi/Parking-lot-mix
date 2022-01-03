@@ -145,6 +145,7 @@ def process(plate):
             thread_list.append(t)
         engine.say(f"歡迎光臨，您入場的時間是{get_Time(1)}車牌號碼為{plate}")
         engine.runAndWait()
+        time.sleep(10800)
         main()
     #出場
     else:
