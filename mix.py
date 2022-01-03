@@ -162,11 +162,11 @@ def process(plate):
             send_LineNotify(lineToken,f'\n謝謝光臨 {account}\n您出場的時間是\n{get_Time(0)}\n車牌號碼為 {plate}')
             send_LineNotify(lineToken,f'\n------消費明細------\n會員帳號：{account}\n車牌號碼：{plate}\n停車時數：{spendt}小時\n消費金額： {spend}元')
             clients[index].f = 0
-            engine.say(f"總共停了{math.ceil(spendt/3600)}小時，金額為{spend}元")
+            engine.say(f"總共停了{spendt}小時，金額為{spend}元")
             engine.runAndWait()
         else:
             del clients[index]
-            engine.say(f"總共停了{math.ceil(spendt/3600)}小時，金額為{spend}元，請刷卡")
+            engine.say(f"總共停了{spendt}小時，金額為{spend}元，請刷卡")
             engine.runAndWait()
     return
 
