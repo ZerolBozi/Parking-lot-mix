@@ -118,7 +118,6 @@ def detect(mode,src):
         ocr = ddddocr.DdddOcr()
         plate = ocr.classification(imgEncode).upper()
         plate = procText(plate)
-        print(plate)
         return plate
     else:
         return "No Plate"
