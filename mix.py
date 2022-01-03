@@ -1,12 +1,12 @@
 import myDatabase
 import findPlate
+import threading
 import requests
-import cv2
 import pyttsx3
 import time
-import threading
 import math
 import json
+import cv2
 import os
 from flask import Flask, request, render_template, session, flash, url_for, redirect
 from datetime import timedelta
@@ -89,7 +89,7 @@ def send_LineNotify(lineToken,msg):
     r = requests.post(url,headers=headers,params=payload)
     return r.status_code
 
-#p = 0 日期+時間 p = 1 語音播放格式 p = 2 時間計算專用
+#0 日期+時間 , 1 語音播放格式 , 2 時間計算專用 , 3 dbg
 def get_Time(p):
     if p==0:
         return time.strftime("%Y/%m/%d\n%H:%M:%S",time.localtime())
@@ -97,53 +97,66 @@ def get_Time(p):
         return time.strftime("%m月%d日 %I:%M:%S",time.localtime())
     elif p==2:
         return time.time()
+    elif p==3:
+        return time.strftime("%H:%M:%S", time.localtime())
     
 def notify_Thread(account,lineToken):
+    print(f"[Debug {get_Time(3)}] User：{account} Notify thread working.")
     index = dic[account]
     send = 0
     while clients[index].f == 1:
         nextt = math.ceil(round(get_Time(2) - clients[index].st,0)/3600)*3600
         if nextt != 0:
             if send == 0 and nextt - round(get_Time(2) - clients[index].st,0) <= 300:
+                print(f"[Debug {get_Time(3)}] User：{account} Next spend amount.")
                 send_LineNotify(lineToken,"5分鐘後即將到達下一個收費金額!!")
                 send = 1
             elif send == 1 and nextt - round(get_Time(2) - clients[index].st,0) > 300:
                 send = 0
         time.sleep(1)
     del clients[index]
+    print(f"[Debug {get_Time(3)}] User：{account} Notify thread stoping.")
     return
 
 def process(plate):
     engine = pyttsx3.init()
+    print(f"[Debug {get_Time(3)}] From database get account...")
     account = myDatabase.get_Account(plate)
     if account == "":
         account = plate
         lineToken = 0
         mem = 0
     else:
+        print(f"[Debug {get_Time(3)}] From database get lineToken...")
         lineToken = myDatabase.get_LineToken(account)
+        print(f"[Debug {get_Time(3)}] LineToken：{lineToken}")
         mem = 1
-
+    print(f"[Debug {get_Time(3)}] Account：{account}")
     #入場
     if account not in dic:
+        print(f"[Debug {get_Time(3)}] User：{account} Enter the parking lot")
         clients.append(Client(account,mem,lineToken,flag=1,startTime=get_Time(2)))
         dic[account] = len(clients)-1
         if mem == 1:
             send_LineNotify(lineToken,f'\n歡迎光臨 {account}\n您入場的時間是\n{get_Time(0)}\n車牌號碼為 {plate}')
+            print(f"[Debug {get_Time(3)}] User：{account} Start notify thread...")
             t = threading.Thread(target=notify_Thread,args=(account,lineToken,))
             t.start()
             thread_list.append(t)
         engine.say(f"歡迎光臨，您入場的時間是{get_Time(1)}車牌號碼為{plate}")
         engine.runAndWait()
+        main()
     #出場
     else:
+        print(f"[Debug {get_Time(3)}] User：{account} Leave the parking lot")
         index = dic[account]
         spendt = math.ceil(round(get_Time(2) - clients[index].st,0)/3600)
+        print(f"[Debug {get_Time(3)}] User：{account} Spend time：{spendt}")
         del dic[account]
         #每小時20元
         baseSpend = 20
         spend = spendt*baseSpend
-
+        print(f"[Debug {get_Time(3)}] User：{account} Spend money：{spend}")
         if clients[index].m == 1:
             send_LineNotify(lineToken,f'\n謝謝光臨 {account}\n您出場的時間是\n{get_Time(0)}\n車牌號碼為 {plate}')
             send_LineNotify(lineToken,f'\n------消費明細------\n會員帳號：{account}\n車牌號碼：{plate}\n停車時數：{spendt}小時\n消費金額： {spend}元')
@@ -160,17 +173,20 @@ def main():
     test = 1
     if test:
         plate = findPlate.detect(1,'1.jpg')
+        print(f'[Debug {get_Time(3)}] Plate："{plate}"')
         thread = threading.Thread(target=process,args=(plate,))
         thread.start()
     else:
         cap = cv2.VideoCapture(0,cv2.CAP_DSHOW) # 0 = 筆電鏡頭 1 = 外接鏡頭
         plateList = []
-        while len(plateList)<=50:
+        while len(plateList)<=100:
             ret,frame = cap.read()
+            cv2.imshow("Camera",frame)
             plate = findPlate.detect(frame)
+            print(f'[Debug {get_Time(3)}] Plate："{plate}"')
             if plate != "No Plate":
                 plateList.append(plate)
-                time.sleep(0.3)
+            time.sleep(0.1)
         cap.release()
         cv2.destroyAllWindows()
         plate = max(plateList,plateList.count)
@@ -184,4 +200,7 @@ if __name__ == "__main__":
     clients = []
     dic = dict()
     threading.Thread(target=app.run).start()
-    main()
+    os.system('cls')
+    print(f"[Debug {get_Time(3)}] Initialization...")
+    time.sleep(1)
+    threading.Thread(target=main).start()
