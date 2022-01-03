@@ -115,7 +115,7 @@ def notify_Thread(account,lineToken):
                 send = 0
         time.sleep(1)
     del clients[index]
-    print(f"[Debug {get_Time(3)}] User：{account} Notify thread stoping.")
+    print(f"[Debug {get_Time(3)}] User：{account} Notify thread stopping.")
     return
 
 def process(plate):
@@ -171,7 +171,7 @@ def process(plate):
     return
 
 def main():
-    test = 1
+    test = 0
     if test:
         plate = findPlate.detect(1,'1.jpg')
         print(f'[Debug {get_Time(3)}] Plate："{plate}"')
