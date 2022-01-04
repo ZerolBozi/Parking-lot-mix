@@ -18,7 +18,7 @@ app.config['SECRET_KEY'] = os.urandom(24)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
 
 @app.route("/")
-def main():
+def index():
     return render_template('index.html')
 
 @app.route("/auth")
