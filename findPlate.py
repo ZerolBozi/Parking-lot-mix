@@ -35,34 +35,35 @@ def findPlateRegion(img):
 
     # 篩選面積小的
     for i in range(len(contours)):
-        cnt = contours[i]
-        # 計算該輪廓面積
-        area = cv2.contourArea(cnt)
-        # 面積小的篩選掉
-        if area < 2000:
+        try:
+            cnt = contours[i]
+            # 計算該輪廓面積
+            area = cv2.contourArea(cnt)
+            # 面積小的篩選掉
+            if area < 2000:
+                continue
+            
+            # 輪廓近似，作用很小
+            epsilon = 0.001 * cv2.arcLength(cnt,True)
+            approx = cv2.approxPolyDP(cnt,epsilon,True)
+
+            # 找到最小的矩形，該矩形可能有方向
+            rect = cv2.minAreaRect(cnt)
+
+            # box是矩形四個點的座標
+            box = cv2.boxPoints(rect)
+            box = np.int0(box)
+
+            # 計算高和寬
+            height = abs(box[0][1] - box[2][1])
+            width = abs(box[0][0] - box[2][0])
+            # 車牌正常情況下長高比在2.7-5之間
+            ratio = float(width) / float(height)
+            if ratio > 5 or ratio < 2 :
+                continue
+            region.append(box)
+        except:
             continue
-        
-        # 輪廓近似，作用很小
-        epsilon = 0.001 * cv2.arcLength(cnt,True)
-        approx = cv2.approxPolyDP(cnt,epsilon,True)
-
-        # 找到最小的矩形，該矩形可能有方向
-        rect = cv2.minAreaRect(cnt)
-
-        # box是矩形四個點的座標
-        box = cv2.boxPoints(rect)
-        box = np.int0(box)
-
-        # 計算高和寬
-        height = abs(box[0][1] - box[2][1])
-        width = abs(box[0][0] - box[2][0])
-
-        # 車牌正常情況下長高比在2.7-5之間
-        ratio = float(width) / float(height)
-
-        if ratio > 5 or ratio < 2 :
-            continue
-        region.append(box)
     return region
 
 #mode 0拍照模式 1模擬模式
@@ -96,29 +97,32 @@ def detect(mode,src):
     region = findPlateRegion(dilation)
 
     if len(region) > 0:
-        box = region[0]
+        try:
+            box = region[0]
 
-        ys = [box[0, 1], box[1, 1], box[2, 1], box[3, 1]]
-        xs = [box[0, 0], box[1, 0], box[2, 0], box[3, 0]]
-        ys_sorted_index = np.argsort(ys)
-        xs_sorted_index = np.argsort(xs)
+            ys = [box[0, 1], box[1, 1], box[2, 1], box[3, 1]]
+            xs = [box[0, 0], box[1, 0], box[2, 0], box[3, 0]]
+            ys_sorted_index = np.argsort(ys)
+            xs_sorted_index = np.argsort(xs)
 
-        x1 = box[xs_sorted_index[0], 0]
-        x2 = box[xs_sorted_index[3], 0]
-        
-        y1 = box[ys_sorted_index[0], 1]
-        y2 = box[ys_sorted_index[3], 1]
+            x1 = box[xs_sorted_index[0], 0]
+            x2 = box[xs_sorted_index[3], 0]
+            
+            y1 = box[ys_sorted_index[0], 1]
+            y2 = box[ys_sorted_index[3], 1]
 
-        img_plate = img.copy()
-        img_plate = img_plate[y1:y2 , x1:x2]
-        img_plate = cv2.cvtColor(img_plate,cv2.COLOR_RGB2GRAY)
+            img_plate = img.copy()
+            img_plate = img_plate[y1:y2 , x1:x2]
+            img_plate = cv2.cvtColor(img_plate,cv2.COLOR_RGB2GRAY)
 
-        imgEncode = cv2.imencode('.jpg',img_plate)[1].tostring()
+            imgEncode = cv2.imencode('.jpg',img_plate)[1].tostring()
 
-        ocr = ddddocr.DdddOcr()
-        plate = ocr.classification(imgEncode).upper()
-        plate = procText(plate)
-        return plate
+            ocr = ddddocr.DdddOcr()
+            plate = ocr.classification(imgEncode).upper()
+            plate = procText(plate)
+            return plate if plate != '' else "No Plate"
+        except:
+            return "No Plate"
     else:
         return "No Plate"
 
