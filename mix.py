@@ -3,6 +3,7 @@ import findPlate
 import threading
 import requests
 import pyttsx3
+import locale
 import time
 import math
 import json
@@ -11,6 +12,7 @@ import os
 from flask import Flask, request, render_template, session, flash, url_for, redirect
 from datetime import timedelta
 
+locale.setlocale(locale.LC_CTYPE,'Chinese')
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
@@ -145,8 +147,6 @@ def process(plate):
             thread_list.append(t)
         engine.say(f"歡迎光臨，您入場的時間是{get_Time(1)}車牌號碼為{plate}")
         engine.runAndWait()
-        time.sleep(10800)
-        main()
     #出場
     else:
         print(f"[Debug {get_Time(3)}] User：{account} Leave the parking lot")
@@ -168,7 +168,7 @@ def process(plate):
             del clients[index]
             engine.say(f"總共停了{spendt}小時，金額為{spend}元，請刷卡")
             engine.runAndWait()
-    return
+    return main()
 
 def main():
     test = 0
@@ -180,20 +180,24 @@ def main():
     else:
         cap = cv2.VideoCapture(0,cv2.CAP_DSHOW) # 0 = 筆電鏡頭 1 = 外接鏡頭
         plateList = []
-        while len(plateList)<=100:
+        # 搜集30組數據 利用眾數獲得車牌號碼
+        while len(plateList)<30:
             ret,frame = cap.read()
             cv2.imshow("Camera",frame)
-            plate = findPlate.detect(frame)
+            plate = findPlate.detect(0,frame)
             print(f'[Debug {get_Time(3)}] Plate："{plate}"')
             if plate != "No Plate":
                 plateList.append(plate)
-            time.sleep(0.1)
+            # time.sleep(0.1)
+            if(cv2.waitKey(5)==27):
+                quit()
+                break
         cap.release()
         cv2.destroyAllWindows()
-        plate = max(plateList,plateList.count)
+        plate = max(plateList,key=plateList.count)
         threading.Thread(target = process,args=(plate,)).start()
 
-if __name__ == "__main__":
+if __name__ == "__main__": 
     global thread_list
     global clients
     global dic
