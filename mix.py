@@ -3,7 +3,6 @@ import findPlate
 import threading
 import requests
 import pyttsx3
-import locale
 import time
 import math
 import json
@@ -12,7 +11,6 @@ import os
 from flask import Flask, request, render_template, session, flash, url_for, redirect
 from datetime import timedelta
 
-locale.setlocale(locale.LC_CTYPE,'Chinese')
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.urandom(24)
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=5)
@@ -81,6 +79,15 @@ class Client:
         self.f = flag
         self.st = startTime
 
+    def getSpendt(self):
+        spendt = math.ceil(round(get_Time(2) - self.st,0)/3600)
+        return spendt
+    
+    def getSpend(self):
+        base = 20
+        spend = self.getSpendt()*base
+        return spend
+
 def send_LineNotify(lineToken,msg):
     url = "https://notify-api.line.me/api/notify"
     headers = {
@@ -107,7 +114,7 @@ def notify_Thread(account,lineToken):
     index = dic[account]
     send = 0
     while clients[index].f == 1:
-        nextt = math.ceil(round(get_Time(2) - clients[index].st,0)/3600)*3600
+        nextt = clients[index].getSpendt()*3600
         if nextt != 0:
             if send == 0 and nextt - round(get_Time(2) - clients[index].st,0) <= 300:
                 print(f"[Debug {get_Time(3)}] User：{account} Next spend amount.")
@@ -120,8 +127,12 @@ def notify_Thread(account,lineToken):
     print(f"[Debug {get_Time(3)}] User：{account} Notify thread stopping.")
     return
 
-def process(plate):
+def say(msg):
     engine = pyttsx3.init()
+    engine.say(msg)
+    engine.runAndWait()
+
+def process(plate):
     print(f"[Debug {get_Time(3)}] From database get account...")
     account = myDatabase.get_Account(plate)
     if account == "":
@@ -145,33 +156,34 @@ def process(plate):
             t = threading.Thread(target=notify_Thread,args=(account,lineToken,))
             t.start()
             thread_list.append(t)
-        engine.say(f"歡迎光臨，您入場的時間是{get_Time(1)}車牌號碼為{plate}")
-        engine.runAndWait()
+        say(f"歡迎光臨，您入場的時間是{get_Time(1)}車牌號碼為{plate}")
     #出場
     else:
         print(f"[Debug {get_Time(3)}] User：{account} Leave the parking lot")
         index = dic[account]
-        spendt = math.ceil(round(get_Time(2) - clients[index].st,0)/3600)
+        spendt = clients[index].getSpendt()
         print(f"[Debug {get_Time(3)}] User：{account} Spend time：{spendt}")
         del dic[account]
-        #每小時20元
-        baseSpend = 20
-        spend = spendt*baseSpend
+        spend = clients[index].getSpend()
         print(f"[Debug {get_Time(3)}] User：{account} Spend money：{spend}")
         if clients[index].m == 1:
+            discount = myDatabase.getDiscount(account)
+            discounts = myDatabase.addDiscount(account,spend)
             send_LineNotify(lineToken,f'\n謝謝光臨 {account}\n您出場的時間是\n{get_Time(0)}\n車牌號碼為 {plate}')
-            send_LineNotify(lineToken,f'\n------消費明細------\n會員帳號：{account}\n車牌號碼：{plate}\n停車時數：{spendt}小時\n消費金額： {spend}元')
             clients[index].f = 0
-            engine.say(f"總共停了{spendt}小時，金額為{spend}元")
-            engine.runAndWait()
+            if discount != 0:
+                send_LineNotify(lineToken,f'\n------消費明細------\n會員帳號：{account}\n車牌號碼：{plate}\n停車時數：{spendt}小時\n消費金額： {spend-discount}元\n現有折價券張數：{discounts}')
+                say(f"總共停了{spendt}小時，金額為{spend}元，扣除折價券後的金額為{spend-discount}元")
+            else:
+                send_LineNotify(lineToken,f'\n------消費明細------\n會員帳號：{account}\n車牌號碼：{plate}\n停車時數：{spendt}小時\n消費金額： {spend}元')
+                say(f"總共停了{spendt}小時，金額為{spend}元")
         else:
             del clients[index]
-            engine.say(f"總共停了{spendt}小時，金額為{spend}元，請刷卡")
-            engine.runAndWait()
+            say(f"總共停了{spendt}小時，金額為{spend}元，請刷卡")
     return main()
 
 def main():
-    test = 0
+    test = 1
     if test:
         plate = findPlate.detect(1,'1.jpg')
         print(f'[Debug {get_Time(3)}] Plate："{plate}"')
@@ -189,7 +201,7 @@ def main():
             if plate != "No Plate":
                 plateList.append(plate)
             # time.sleep(0.1)
-            if(cv2.waitKey(5)==27):
+            if cv2.waitKey(5)==27:
                 quit()
                 break
         cap.release()
