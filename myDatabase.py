@@ -24,7 +24,8 @@ def registerMember(account,password,phone,carid,lineToken):
             "Password" : password,
             "Phone" : phone,
             "CarId" : carid,
-            "LineToken" : lineToken
+            "LineToken" : lineToken,
+            "Discount" : "0"
         }
         ref.child("Users/" + account).update(data)
         ref.child("Plates").update({carid : account})
@@ -46,3 +47,25 @@ def updateMemberPlate(account,password,carid):
             return "帳號或密碼錯誤"
     else:
         return "帳號或密碼錯誤"
+
+def addDiscount(account,spend):
+    ref = db.reference()
+    userData = ref.child('Users/'+account).get()
+    if userData != None:
+        ref.child('Users/'+account+"/Discount").set(str(spend//100))
+        return spend//100
+    else:
+        return 0
+
+def getDiscount(account):
+    ref = db.reference()
+    userData = ref.child('Users/'+account).get()
+    if userData != None:
+        discount = userData['Discount']
+        if discount != "0":
+            ref.child('Users/'+account+"/Discount").set("0")
+            return int(discount)*10
+        else:
+            return 0
+    else:
+        return 0
