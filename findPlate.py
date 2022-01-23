@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import ddddocr
+import easyocr
 
 #算法來源：https://github.com/hyzhangyong/platenumber/blob/master/platenumber.py
 
@@ -117,9 +118,14 @@ def detect(mode,src):
 
             imgEncode = cv2.imencode('.jpg',img_plate)[1].tostring()
 
-            ocr = ddddocr.DdddOcr()
-            plate = ocr.classification(imgEncode).upper()
-            plate = procText(plate)
+            # ocr = ddddocr.DdddOcr()
+            # plate = ocr.classification(imgEncode).upper()
+            # plate = procText(plate)
+
+            reader = easyocr.Reader(['en'],gpu=True)
+            result = reader.readtext(imgEncode,detail=0)
+            # print(result[0])
+            plate = result[0]
             return plate if plate != '' else "No Plate"
         except:
             return "No Plate"
@@ -136,4 +142,4 @@ def procText(text):
     return eng + num
 
 if __name__ == "__main__":
-    detect('Pic/1.jpg')
+    detect(1,'1.jpg')
